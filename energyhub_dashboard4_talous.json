@@ -1,0 +1,136 @@
+{
+  "title": "EnergyHub — Talous",
+  "uid": "energyhub-economy",
+  "timezone": "browser",
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Päivittäinen PV-tuotanto (kWh)",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatth",
+          "color": { "fixedColor": "yellow", "mode": "fixed" },
+          "custom": { "fillOpacity": 80 }
+        }
+      },
+      "options": {
+        "xTickLabelRotation": -45,
+        "barWidth": 0.7,
+        "groupWidth": 0.7
+      },
+      "targets": [{
+        "datasource": "influxdb",
+        "refId": "PV_DAY",
+        "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_pv_power_w\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1d, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 24.0 / 1000.0 }))\n  |> set(key: \"_field\", value: \"PV kWh/pv\")"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Päivittäinen verkkoosto vs myynti (kWh)",
+      "type": "barchart",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "kwatth", "custom": { "fillOpacity": 80 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Osto" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "Myynti" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "options": { "xTickLabelRotation": -45, "barWidth": 0.7 },
+      "targets": [
+        { "datasource": "influxdb", "refId": "BUY", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"p1_meter_energian_tuonti\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1d, fn: max, createEmpty: false)\n  |> difference()\n  |> set(key: \"_field\", value: \"Osto\")" },
+        { "datasource": "influxdb", "refId": "SELL", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"p1_meter_energian_vienti\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1d, fn: max, createEmpty: false)\n  |> difference()\n  |> set(key: \"_field\", value: \"Myynti\")" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Spot-hinta tänään (€/kWh) — tunneittain",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "custom": { "fillOpacity": 80 },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "value": null, "color": "green" },
+            { "value": 0.04, "color": "yellow" },
+            { "value": 0.15, "color": "red" }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "xTickLabelRotation": -45, "barWidth": 0.8 },
+      "targets": [{
+        "datasource": "influxdb",
+        "refId": "SPOT_TODAY",
+        "query": "from(bucket: \"energyhub\")\n  |> range(start: today(), stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_spot_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"€/kWh\")"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Arvioidut kustannukset vs tulot (€/pv)",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "currencyEUR", "custom": { "fillOpacity": 80 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Ostokustannus" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "Myyntitulo" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "options": { "xTickLabelRotation": -45 },
+      "targets": [
+        { "datasource": "influxdb", "refId": "COST", "query": "buy_kwh = from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_buy_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n\ngrid_buy = from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_grid_power_w\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> map(fn: (r) => ({ r with _value: if r._value > 0.0 then r._value else 0.0 }))\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n\njoin(tables: {price: buy_kwh, power: grid_buy}, on: [\"_time\"])\n  |> map(fn: (r) => ({ r with _value: r._value_price * r._value_power / 1000.0 }))\n  |> aggregateWindow(every: 1d, fn: sum, createEmpty: false)\n  |> set(key: \"_field\", value: \"Ostokustannus\")" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Spot-hinta — 7 pv historia (€/kWh)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "custom": { "fillOpacity": 10, "lineWidth": 1 },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "value": null, "color": "green" },
+            { "value": 0.04, "color": "yellow" },
+            { "value": 0.15, "color": "red" }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "targets": [{
+        "datasource": "influxdb",
+        "refId": "SPOT_WEEK",
+        "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_spot_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Spot €/kWh\")"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Negatiiviset hintatunnit",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 7 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "custom": { "fillOpacity": 30, "lineWidth": 1 },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "value": null, "color": "red" },
+            { "value": 0, "color": "transparent" }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "targets": [{
+        "datasource": "influxdb",
+        "refId": "NEG",
+        "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_spot_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> filter(fn: (r) => r[\"_value\"] < 0.0)\n  |> aggregateWindow(every: 1h, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Negatiivinen hinta\")"
+      }]
+    }
+  ]
+}

@@ -1,0 +1,180 @@
+{
+  "title": "EnergyHub — Laitteiden seuranta",
+  "uid": "energyhub-devices",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Thermia — Lämpötilat (°C)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "celsius", "custom": { "lineWidth": 1 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Käyttövesi" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }}, { "id": "custom.lineWidth", "value": 2 }]},
+          { "matcher": { "id": "byName", "options": "Menovesi" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "Paluuvesi" }, "properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "Ulkolämpö" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "TAP", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_tap_water_top_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Käyttövesi\")" },
+        { "datasource": "influxdb", "refId": "SUP", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_supply_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Menovesi\")" },
+        { "datasource": "influxdb", "refId": "RET", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_return_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Paluuvesi\")" },
+        { "datasource": "influxdb", "refId": "OUT", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_outdoor_temp_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Ulkolämpö\")" }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Thermia — Kompressori (%) + Smart Grid -tila",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Smart Grid" }, "properties": [
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "purple", "mode": "fixed" }},
+            { "id": "custom.drawStyle", "value": "bars" },
+            { "id": "custom.fillOpacity", "value": 40 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Kompressori" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }},
+            { "id": "custom.lineWidth", "value": 2 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "COMP", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_compressor_speed_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Kompressori\")" },
+        { "datasource": "influxdb", "refId": "SG", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_smart_grid_mode_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> set(key: \"_field\", value: \"Smart Grid\")" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Thermia — Käyttötila (1=Manuaali 2=Sulatus 3=KV 4=Lämmitys 7=Legionella)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "drawStyle": "bars", "fillOpacity": 60, "lineWidth": 0 },
+          "color": { "fixedColor": "blue", "mode": "fixed" }
+        }
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "MODE", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_currently_running_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> set(key: \"_field\", value: \"Käyttötila\")" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Thermia — Sähkönkulutus (W) — ShellyEM3",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "watt",
+          "color": { "fixedColor": "red", "mode": "fixed" },
+          "custom": { "fillOpacity": 20 }
+        }
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "HP_PWR", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellyem3_c45bbe561927_phase_a_teho\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"HP Teho\")" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Sungrow — PV-tuotanto + MPPT-jännitteet (V)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "watt" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "MPPT1 V" }, "properties": [
+            { "id": "unit", "value": "volt" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "MPPT2 V" }, "properties": [
+            { "id": "unit", "value": "volt" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "PV Teho" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }},
+            { "id": "custom.fillOpacity", "value": 15 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "PV", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_active_power_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"PV Teho\")" },
+        { "datasource": "influxdb", "refId": "M1V", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_mppt1_voltage_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"MPPT1 V\")" },
+        { "datasource": "influxdb", "refId": "M2V", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_mppt2_voltage_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"MPPT2 V\")" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Sungrow — PV-rajoitus (%) + MPPT-virrat (A)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "MPPT1 A" }, "properties": [
+            { "id": "unit", "value": "amp" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "MPPT2 A" }, "properties": [
+            { "id": "unit", "value": "amp" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "PV Rajoitus" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }},
+            { "id": "custom.fillOpacity", "value": 20 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "CUR", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_power_limitation_setting_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"PV Rajoitus\")" },
+        { "datasource": "influxdb", "refId": "M1A", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_mppt1_current_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"MPPT1 A\")" },
+        { "datasource": "influxdb", "refId": "M2A", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_mppt2_current_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"MPPT2 A\")" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "EV — Latausteho (W) + SOC (%) + Rele",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "watt" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "SOC" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }},
+            { "id": "custom.lineWidth", "value": 2 }
+          ]},
+          { "matcher": { "id": "byName", "options": "EV Teho" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }},
+            { "id": "custom.fillOpacity", "value": 20 }
+          ]},
+          { "matcher": { "id": "byName", "options": "Rele" }, "properties": [
+            { "id": "unit", "value": "bool" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" }},
+            { "id": "custom.drawStyle", "value": "bars" },
+            { "id": "custom.fillOpacity", "value": 30 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "EV", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellypro3em63_a4f00fce5af8_phase_a_teho\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"EV Teho\")" },
+        { "datasource": "influxdb", "refId": "SOC", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"leaf_battery_level\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"SOC\")" },
+        { "datasource": "influxdb", "refId": "RELAY", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellypro1_ec62608be038\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> set(key: \"_field\", value: \"Rele\")" }
+      ]
+    }
+  ]
+}

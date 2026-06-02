@@ -1,0 +1,159 @@
+{
+  "title": "EnergyHub — Päätösanalyysi",
+  "uid": "energyhub-decisions",
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Spot-hinta (€/kWh) + hintakynnykset",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "custom": { "fillOpacity": 15, "lineWidth": 2 },
+          "thresholds": { "mode": "absolute", "steps": [
+            { "value": null, "color": "green" },
+            { "value": 0.04, "color": "yellow" },
+            { "value": 0.15, "color": "red" }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [{
+        "datasource": "influxdb",
+        "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_spot_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)",
+        "refId": "SPOT"
+      }]
+    },
+    {
+      "id": 2,
+      "title": "Vaihevirrat L1/L2/L3 (A) + sulakerajat",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "amp",
+          "custom": { "lineWidth": 1 }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "L1" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "L2" }, "properties": [{ "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "L3" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "thresholds": {
+          "steps": [
+            { "value": 22.5, "color": "yellow", "op": "gt" },
+            { "value": 24.5, "color": "red", "op": "gt" }
+          ]
+        }
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "L1", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_phase_l1_a\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"L1\")" },
+        { "datasource": "influxdb", "refId": "L2", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_phase_l2_a\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"L2\")" },
+        { "datasource": "influxdb", "refId": "L3", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_phase_l3_a\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"L3\")" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "PV-tuotanto (W) + Verkkoteho (W)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "watt", "custom": { "lineWidth": 1 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "PV" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" }}]},
+          { "matcher": { "id": "byName", "options": "Verkko" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }}]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "PV", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_pv_power_w\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"PV\")" },
+        { "datasource": "influxdb", "refId": "GRID", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_grid_power_w\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Verkko\")" }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "EV — Latausteho (W) + SOC (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "watt" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "SOC" }, "properties": [
+            { "id": "unit", "value": "percent" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" }},
+            { "id": "custom.lineWidth", "value": 2 }
+          ]},
+          { "matcher": { "id": "byName", "options": "EV Teho" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "blue", "mode": "fixed" }},
+            { "id": "custom.fillOpacity", "value": 20 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "EV", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellypro3em63_a4f00fce5af8_phase_a_teho\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"EV Teho\")" },
+        { "datasource": "influxdb", "refId": "SOC", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"leaf_battery_level\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"SOC\")" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HP — EVU/Boost tila + Käyttövesi (°C)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "celsius" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "EVU (SG1)" }, "properties": [
+            { "id": "unit", "value": "bool" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "Boost (SG2)" }, "properties": [
+            { "id": "unit", "value": "bool" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }}
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "TAP", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"wp_tap_water_top_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Käyttövesi\")" },
+        { "datasource": "influxdb", "refId": "EVU", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellypro2_ec62609153c8_output_0\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> set(key: \"_field\", value: \"EVU (SG1)\")" },
+        { "datasource": "influxdb", "refId": "BOOST", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"shellypro2_ec62609153c8_output_1\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> set(key: \"_field\", value: \"Boost (SG2)\")" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "PV-rajoitus (%) + Spot-hinta (€/kWh)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 7 },
+      "fieldConfig": {
+        "defaults": { "unit": "percent" },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Spot-hinta" }, "properties": [
+            { "id": "unit", "value": "currencyEUR" },
+            { "id": "custom.axisPlacement", "value": "right" },
+            { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" }}
+          ]},
+          { "matcher": { "id": "byName", "options": "PV-rajoitus" }, "properties": [
+            { "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" }},
+            { "id": "custom.fillOpacity", "value": 20 }
+          ]}
+        ]
+      },
+      "targets": [
+        { "datasource": "influxdb", "refId": "CURTAIL", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"sungrow_power_limitation_setting_raw\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"PV-rajoitus\")" },
+        { "datasource": "influxdb", "refId": "SPOT2", "query": "from(bucket: \"energyhub\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r[\"entity_id\"] == \"m_spot_price_eur_kwh\")\n  |> filter(fn: (r) => r[\"_field\"] == \"value\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> set(key: \"_field\", value: \"Spot-hinta\")" }
+      ]
+    }
+  ]
+}
